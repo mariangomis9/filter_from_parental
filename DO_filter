@@ -1,0 +1,49 @@
+#create a directory to save you files. it's better to create one directory per strain and derivatives mutants
+```{bash}
+SAMPLE=$1 #load a list of samples
+LINEAGE=$2 #name of directory your samples are in
+PARENTAL=$3 #name of parental strain
+REFERENCE=$4 #bactopia default used reference
+mkdir /home/micro/Escritorio/BACTOPIA
+mkdir /home/micro/Escritorio/BACTOPIA/$LINEAGE
+```
+
+#For PARENTAL STRAIN: uncompress VCF parental file from bactopia output and copy to a different path. 
+```{bash}
+gzip -d /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$PARENTAL/variants/$REFERENCE/"$PARENTAL".vcf.gz
+cp /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$PARENTAL/variants/$REFERENCE/"$PARENTAL".vcf /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$PARENTAL".vcf
+```
+
+#compress VCF file with bgzip tool (-f gz without asking)
+```{bash}
+bgzip -f /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$PARENTAL".vcf 
+```
+
+#index VCF file
+```{bash}
+bcftools index /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$PARENTAL".vcf.gz
+```
+
+#Repeat this procedure for mutants 
+```{bash}
+gzip -d /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$SAMPLE/variants/$REFERENCE/"$SAMPLE".vcf.gz 
+bgzip -f /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$SAMPLE/variants/$REFERENCE/"$SAMPLE".vcf
+bcftools index -f /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$SAMPLE/variants/$REFERENCE/"$SAMPLE".vcf.gz 
+```
+
+#Create intersection between VCF mutants and parental strain files. Use -C, --complement: Output positions present only in the first file but missing in the others
+```{bash}
+bcftools isec -C /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$SAMPLE/variants/$REFERENCE/"$SAMPLE".vcf.gz   /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$PARENTAL".vcf.gz > /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_filtrated
+```
+
+#compare 2 files produce 1. awk 'NR==FNR{c[$2]++;next};c[$2]>0' code means that whats on the second column of the first file its exactly on the second column of the second file, then print the line
+```{bash}
+awk 'NR==FNR{c[$2]++;next};c[$2]>0' /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_filtrated /media/micro/Expansion/BACTOPIA_TFM/FDC_INVITRODYNAMICS/$LINEAGE/$SAMPLE/variants/$REFERENCE/"$SAMPLE".tab > /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_curated
+```
+
+#select lines where the change is located in a codifying region. that's why we look for "CDS" on the 8th column. we also look for changes that have some effect (we eliminate synonimous changes)
+```{bash}
+awk '$8=="CDS"' /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_curated > /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_VCF
+grep -v "synonymous_variant" /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_VCF > /home/micro/Escritorio/BACTOPIA/$LINEAGE/"$SAMPLE"_VCF_END
+```
+
